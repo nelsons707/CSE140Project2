@@ -81,6 +81,24 @@ void init_lru(int assoc_index, int block_index)
 void accessMemory(address addr, word* data, WriteEnable we)
 {
   /* Declare variables here */
+		/*We want to create variables for tag, index, and offset
+		 so we can separate them based on our diagram of |tag|index|offset|
+		 To do so, we need to know how many bits we need for each of these fields*/
+	int index_bit = uint_log2(set_count);
+	int offset_bit = uint_log2(block_size);
+	int tag_bit = 32 - offset_bit - index_bit;
+	
+	/*INDEX*/
+	int index = addr << tag_bit;
+	index = index >> (tag_bit + offset_bit);
+	
+	/*OFFSET*/
+	int offset = addr << (offset_bit + tag_bit);
+	offset = offset >> (offset_bit + tag_bit);
+	
+	/*TAG*/
+	int tag = addr >> tag_bit;
+	
 
   /* handle the case of no cache at all - leave this in */
   if(assoc == 0) {
@@ -116,6 +134,17 @@ void accessMemory(address addr, word* data, WriteEnable we)
   */
 
   /* Start adding code here */
+  if (assoc == 1) {
+	  
+  } else if (assoc == 2) {
+	  
+  } else if (assoc == 3) {
+	  
+  } else if (assoc == 4) {
+	  
+  } else (assoc == 5) {
+	  
+  }
 
 
   /* This call to accessDRAM occurs when you modify any of the
