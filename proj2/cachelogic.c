@@ -1,3 +1,4 @@
+/*Malia Bowman and Nelson Swasono*/
 #include "tips.h"
 
 /* The following two functions are defined in util.c */
@@ -84,20 +85,28 @@ void accessMemory(address addr, word* data, WriteEnable we)
 		/*We want to create variables for tag, index, and offset
 		 so we can separate them based on our diagram of |tag|index|offset|
 		 To do so, we need to know how many bits we need for each of these fields*/
-	int index_bit = uint_log2(set_count);
-	int offset_bit = uint_log2(block_size);
-	int tag_bit = 32 - offset_bit - index_bit;
+	unsigned int index_bit = uint_log2(set_count);
+	unsigned int offset_bit = uint_log2(block_size);
+	unsigned int tag_bit = 32 - offset_bit - index_bit;
 	
+	/*Replacement policy variables*/
+	unsigned int HIT = 0, LRU_index = 0, LRU_value = 0;
+	
+	TransferUnit byte_amount = 0;
+
 	/*INDEX*/
-	int index = addr << tag_bit;
-	index = index >> (tag_bit + offset_bit);
+	unsigned int index_val = addr << tag_bit;
+	index_val = index_val >> (tag_bit + offset_bit);
 	
 	/*OFFSET*/
-	int offset = addr << (offset_bit + tag_bit);
-	offset = offset >> (offset_bit + tag_bit);
+	unsigned int offset_val = addr << (offset_bit + tag_bit);
+	offset_val = offset_val >> (offset_bit + tag_bit);
 	
 	/*TAG*/
-	int tag = addr >> tag_bit;
+	unsigned int tag_val = addr >> tag_bit;
+	
+	/*BYTE*/
+	unsigned int byte_amt = uint_log2
 	
 
   /* handle the case of no cache at all - leave this in */
@@ -134,23 +143,129 @@ void accessMemory(address addr, word* data, WriteEnable we)
   */
 
   /* Start adding code here */
-  if (assoc == 1) {
-	  
-  } else if (assoc == 2) {
-	  
-  } else if (assoc == 3) {
-	  
-  } else if (assoc == 4) {
-	  
-  } else (assoc == 5) {
-	  
-  }
+ 
+	if (we == READ) { //READ HERE
+		for (int i = 0; i < assoc; i++) {
+			if ((cache[index_val].block[i].valid == 1) && (tag_val == cache[index_val].block[i].tag)) {		//BLOCK HIT
+				HIT = 1;
+				cache[index_val].block[i].lru.value = 0;
+				cache[index_val].block[i].valid = 1;
+				/*Below line: copies data from the element + the offset, then transfers 4 Bytes*/
+				memcpy(data,cache[index_val].block[i].data + offset_val, 4); 
+			}
+		}
+		
+		if (HIT == 0) { //i.e. if there is a miss
+			/*LRU REPLACEMENT*/
+			if (policy == LRU) {
+				for (int i = 0; i < assoc; i++) {
+					cache[index_val].block[i].lru.value++; // increment the lru value
+					if (LRU_value < cache[index_val].block[i].lru.value) { //if needed, replace LRU  
+						LRU_index = i;
+						LRU_val = cache[index_val].block[i].lru.value;
+					}
+				}
+			} else if (policy == RANDOM) {
+				LRU_index = randomint(assoc);
+			} 
+			/*Below line: checking if DIRTY */
+			 if (cache[index_val].block[LRU_index].dirty == DIRTY) { 
+				address oldAddr = cache[index_val].block[LRU_index].tag << ((index_bit + offset_bit) + (index_val << offset_bit));
+				accessDRAM(oldAddr, (cache[index_val].block[LRU_index].data), byte_amount, WRITE);
+			}
+			 
+			accessDRAM(addr, cache[index_val].block[LRU_index].data, byte_amount, READ);
+			
+			cache[index_val].block[LRU_index].dirty = VIRGIN;
+			cache[index_val].block[LRU_index].tag = tag_val;
+			cache[index_val].block[LRU_index].lru.value = 0;
+			cache[index_val].block[LRU_index].valid = 1;
+			
+			/*Below line: copies data from the element + the offset, then transfers 4 Bytes*/
+			memcpy(data,cache[index_val].block[LRU_index].data + offset_val, 4);
+			
+		}
+	} /*WRITE*/ 
+	 else { 
+		HIT = 0;
+		if (memory_sync_policy == WRITE_BACK) {							//write back
+			for (int i = 0; i < assoc; i++) {
+				if (cache[index_val].block[i].valid == 1) {
+					memcpy((cache[index_val].block[i].data + offset_val), data, 4);
+					cache[index_val].block[i].dirty = DIRTY;
+					cache[index_val].block[i].lru.value = 0;
+					cache[index_val].block[i].valid = 1;
+					HIT = 1;
+				}
+			}
+			if(HIT==0) {									
+				if(policy == LRU){
+					for(int i=0; i<assoc; i++) {
+						cache[index_val].block[i].lru.value++;
+						if(LRU_value < cache[index_val].block[i].lru.value) {
+							LRU_index = i;
+							LRU_value = cache[index_val].block[i].lru.value;
+						}					
+					}
+				}else if(policy == RANDOM) {
+					LRU_index = randomint(assoc);
+				}
+				if(cache[index_val].block[LRU_index].dirty == DIRTY) {
+					address oldAddr = cache[index_val].block[LRU_index].tag << ((index_bit + offset_bit) + (index_val << offset_bit)); //calculate old address
+					accessDRAM(oldAddr, (cache[index_val].block[LRU_index].data), byte_amount, WRITE);							//write data into accessDRAM
+				}
 
-
+				accessDRAM(addr, cache[index_val].block[LRU_index].data, byte_amount, READ);
+			
+				cache[index_val].block[LRU_index].dirty = VIRGIN;
+				cache[index_val].block[LRU_index].tag = tag_val;
+				cache[index_val].block[LRU_index].lru.value = 0;
+				cache[index_val].block[LRU_index].valid = 1;
+				
+				/*Below line: copies data from the element + the offset, then transfers 4 Bytes*/
+				memcpy(data,cache[index_val].block[LRU_index].data + offset_val, 4);
+			
+			}	
+		} else { //Write Through
+			for (int i = 0; i < assoc; i++) {
+				if(tag_val == cache[index_val].block[i].valid == 1 && cache[index_val].block[i].tag == tag_val) {
+					memcpy((cache[index_val].block[i].data + offset_val), data, 4);
+					cache[index_val].block[i].valid = 1;
+					cache[index_val].block[i].dirty = VIRGIN;
+					HIT = 1;
+					accessDRAM(addr, cache[index_val].block[LRU_index].data, byte_amount, WRITE);
+				}
+			}
+			
+			if(HIT==0) {
+				if (policy == LRU){
+					
+					for (int i = 0; i < assoc; i++) {
+						if (LRU_value < cache[index_val].block[i].lru.value) {
+							LRU_index = i;
+							LRU_value = cache[index_val].block[i].lru.value;
+						}
+					}
+				} else if (policy == RANDOM) {
+					LRU_index = randomint(assoc);
+				}
+				
+				accessDRAM(addr, cache[index_val].block[LRU_index].data, byte_amount, READ);
+			
+				cache[index_val].block[LRU_index].dirty = VIRGIN;
+				cache[index_val].block[LRU_index].tag = tag_val;
+				cache[index_val].block[LRU_index].lru.value = 0;
+				cache[index_val].block[LRU_index].valid = 1;
+				
+				/*Below line: copies data from the element + the offset, then transfers 4 Bytes*/
+				memcpy(data,cache[index_val].block[LRU_index].data + offset_val, 4);
+			}
+		}		
+	}
   /* This call to accessDRAM occurs when you modify any of the
      cache parameters. It is provided as a stop gap solution.
      At some point, ONCE YOU HAVE MORE OF YOUR CACHELOGIC IN PLACE,
      THIS LINE SHOULD BE REMOVED.
   */
-  accessDRAM(addr, (byte*)data, WORD_SIZE, we);
+  //accessDRAM(addr, (byte*)data, WORD_SIZE, we);
 }
