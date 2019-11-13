@@ -87,7 +87,7 @@ void accessMemory(address addr, word* data, WriteEnable we)
 		 To do so, we need to know how many bits we need for each of these fields*/
 	unsigned int index_bit = uint_log2(set_count);
 	unsigned int offset_bit = uint_log2(block_size);
-	unsigned int tag_bit = 32 - offset_bit - index_bit;
+	unsigned int tag_bit = 32 - offset_bit - index_bit;	
 	
 	/*Replacement policy variables*/
 	unsigned int HIT = 0, LRU_index = 0, LRU_value = 0;
@@ -106,9 +106,8 @@ void accessMemory(address addr, word* data, WriteEnable we)
 	unsigned int tag_val = addr >> tag_bit;
 	
 	/*BYTE*/
-	unsigned int byte_amt = uint_log2
+	unsigned int byte_amt = uint_log2(block_size);
 	
-
   /* handle the case of no cache at all - leave this in */
   if(assoc == 0) {
     accessDRAM(addr, (byte*)data, WORD_SIZE, we);
@@ -148,7 +147,9 @@ void accessMemory(address addr, word* data, WriteEnable we)
 		for (int i = 0; i < assoc; i++) {
 			if ((cache[index_val].block[i].valid == 1) && (tag_val == cache[index_val].block[i].tag)) {		//BLOCK HIT
 				HIT = 1;
-				cache[index_val].block[i].lru.value = 0;
+				highlight_offset(index_val, i, offset, HIT);
+				highlight_block(index, i);
+				cache[index_val].block[i].lru.value++;
 				cache[index_val].block[i].valid = 1;
 				/*Below line: copies data from the element + the offset, then transfers 4 Bytes*/
 				memcpy(data,cache[index_val].block[i].data + offset_val, 4); 
@@ -157,6 +158,8 @@ void accessMemory(address addr, word* data, WriteEnable we)
 		
 		if (HIT == 0) { //i.e. if there is a miss
 			/*LRU REPLACEMENT*/
+			highlight_offset(index_val, i, offset, MISS);
+			highlight_block(index, i);
 			if (policy == LRU) {
 				for (int i = 0; i < assoc; i++) {
 					cache[index_val].block[i].lru.value++; // increment the lru value
@@ -183,7 +186,6 @@ void accessMemory(address addr, word* data, WriteEnable we)
 			
 			/*Below line: copies data from the element + the offset, then transfers 4 Bytes*/
 			memcpy(data,cache[index_val].block[LRU_index].data + offset_val, 4);
-			
 		}
 	} /*WRITE*/ 
 	 else { 
