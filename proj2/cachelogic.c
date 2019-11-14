@@ -92,15 +92,29 @@ void accessMemory(address addr, word* data, WriteEnable we)
 	/*Replacement policy variables*/
 	unsigned int HIT = 0, LRU_index = 0, LRU_value = 0;
 	
-	TransferUnit byte_amount = 0;
-
+	TransferUnit byte_amount = 0; // check with if/else to make sure that you have the right transfer unit (look at tips.h line 56)
+	if (block_size == 4){
+		byte_amount = WORD_SIZE;
+	} if (block_size == 8){
+		byte_amount = DOUBLEWORD_SIZE;
+	} if (block_size == 16){
+		byte_amount = QUADWORD_SIZE;
+	} if (block_size == 32){
+		byte_amount = OCTWORD_SIZE;
+	} if (block_size == 1){
+		byte_amount = BYTE_SIZE;
+	} if (block_size == 2){
+		byte_amount = HALF_WORD_SIZE;
+	}
+	
 	/*INDEX*/
 	unsigned int index_val = addr << tag_bit;
 	index_val = index_val >> (tag_bit + offset_bit);
 	
 	/*OFFSET*/
-	unsigned int offset_val = addr << (offset_bit + tag_bit);
-	offset_val = offset_val >> (offset_bit + tag_bit);
+	unsigned int offset_val = addr << (index_bit + tag_bit);
+	offset_val = offset_val >> (index_bit + tag_bit);
+	printf("%x\n", offset_val);
 	
 	/*TAG*/
 	unsigned int tag_val = addr >> tag_bit;
@@ -146,9 +160,9 @@ void accessMemory(address addr, word* data, WriteEnable we)
 	if (we == READ) { //READ HERE
 		for (int i = 0; i < assoc; i++) {
 			if ((cache[index_val].block[i].valid == 1) && (tag_val == cache[index_val].block[i].tag)) {		//BLOCK HIT
-				HIT = 1;
-				highlight_offset(index_val, i, offset, HIT);
-				highlight_block(index, i);
+				//HIT = 1;
+				highlight_offset(index_val, i, offset_val, HIT);
+				highlight_block(index_val, i);
 				cache[index_val].block[i].lru.value++;
 				cache[index_val].block[i].valid = 1;
 				/*Below line: copies data from the element + the offset, then transfers 4 Bytes*/
@@ -158,15 +172,16 @@ void accessMemory(address addr, word* data, WriteEnable we)
 		
 		if (HIT == 0) { //i.e. if there is a miss
 			/*LRU REPLACEMENT*/
-			highlight_offset(index_val, i, offset, MISS);
-			highlight_block(index, i);
+			int i = 0;
+			highlight_offset(index_val, i, offset_val, MISS);
+			highlight_block(index_val, i);
 			if (policy == LRU) {
 				for (int i = 0; i < assoc; i++) {
-					cache[index_val].block[i].lru.value++; // increment the lru value
 					if (LRU_value < cache[index_val].block[i].lru.value) { //if needed, replace LRU  
 						LRU_index = i;
-						LRU_val = cache[index_val].block[i].lru.value;
+						LRU_value = cache[index_val].block[i].lru.value;
 					}
+					cache[index_val].block[i].lru.value++; // increment the lru value
 				}
 			} else if (policy == RANDOM) {
 				LRU_index = randomint(assoc);
@@ -174,6 +189,7 @@ void accessMemory(address addr, word* data, WriteEnable we)
 			/*Below line: checking if DIRTY */
 			 if (cache[index_val].block[LRU_index].dirty == DIRTY) { 
 				address oldAddr = cache[index_val].block[LRU_index].tag << ((index_bit + offset_bit) + (index_val << offset_bit));
+				//printf("%x\n",oldAddr);
 				accessDRAM(oldAddr, (cache[index_val].block[LRU_index].data), byte_amount, WRITE);
 			}
 			 
