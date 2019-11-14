@@ -93,6 +93,7 @@ void accessMemory(address addr, word* data, WriteEnable we)
 	unsigned int HIT = 0, LRU_index = 0, LRU_value = 0;
 	
 	TransferUnit byte_amount = 0; // check with if/else to make sure that you have the right transfer unit (look at tips.h line 56)
+	//Daniel helped us with lines 97-109
 	if (block_size == 4){
 		byte_amount = WORD_SIZE;
 	} if (block_size == 8){
@@ -160,7 +161,7 @@ void accessMemory(address addr, word* data, WriteEnable we)
 	if (we == READ) { //READ HERE
 		for (int i = 0; i < assoc; i++) {
 			if ((cache[index_val].block[i].valid == 1) && (tag_val == cache[index_val].block[i].tag)) {		//BLOCK HIT
-				//HIT = 1;
+				//HIT = 1; // this did not make sense becuase HIT is 0 and MISS is 1, we were setting it equal to this and in the line below it is a parameter
 				highlight_offset(index_val, i, offset_val, HIT);
 				highlight_block(index_val, i);
 				cache[index_val].block[i].lru.value++;
