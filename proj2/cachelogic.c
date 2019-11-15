@@ -115,13 +115,9 @@ void accessMemory(address addr, word* data, WriteEnable we)
 	/*OFFSET*/
 	unsigned int offset_val = addr << (index_bit + tag_bit);
 	offset_val = offset_val >> (index_bit + tag_bit);
-	printf("%x\n", offset_val);
 	
 	/*TAG*/
 	unsigned int tag_val = addr >> tag_bit;
-	
-	/*BYTE*/
-	unsigned int byte_amt = uint_log2(block_size);
 	
   /* handle the case of no cache at all - leave this in */
   if(assoc == 0) {
@@ -161,13 +157,14 @@ void accessMemory(address addr, word* data, WriteEnable we)
 	if (we == READ) { //READ HERE
 		for (int i = 0; i < assoc; i++) {
 			if ((cache[index_val].block[i].valid == 1) && (tag_val == cache[index_val].block[i].tag)) {		//BLOCK HIT
-				//HIT = 1; // this did not make sense becuase HIT is 0 and MISS is 1, we were setting it equal to this and in the line below it is a parameter
 				highlight_offset(index_val, i, offset_val, HIT);
 				highlight_block(index_val, i);
+				HIT = 1;
 				//cache[index_val].block[i].lru.value++;
 				init_lru(index_val, i);
 				cache[index_val].block[i].valid = 1;
 			}
+			
 		}
 		if (HIT == 0) { //i.e. if there is a miss
 			/*LRU REPLACEMENT*/
@@ -188,7 +185,6 @@ void accessMemory(address addr, word* data, WriteEnable we)
 			/*Below line: checking if DIRTY */
 			if (cache[index_val].block[LRU_index].dirty == DIRTY) { 
 				address oldAddr = cache[index_val].block[LRU_index].tag << ((index_bit + offset_bit) + (index_val << offset_bit));
-				
 				accessDRAM(oldAddr, (cache[index_val].block[LRU_index].data), byte_amount, WRITE);
 			}
 			 
@@ -203,7 +199,7 @@ void accessMemory(address addr, word* data, WriteEnable we)
 		memcpy(data,cache[index_val].block[LRU_index].data + offset_val, 4);
 	} /*WRITE*/ 
 	 else { 
-		HIT = 0;
+		
 		if (memory_sync_policy == WRITE_BACK) {							//write back
 			for (int i = 0; i < assoc; i++) {
 				if (cache[index_val].block[i].valid == 1) {
