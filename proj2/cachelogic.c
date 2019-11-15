@@ -164,13 +164,11 @@ void accessMemory(address addr, word* data, WriteEnable we)
 				//HIT = 1; // this did not make sense becuase HIT is 0 and MISS is 1, we were setting it equal to this and in the line below it is a parameter
 				highlight_offset(index_val, i, offset_val, HIT);
 				highlight_block(index_val, i);
-				cache[index_val].block[i].lru.value++;
+				//cache[index_val].block[i].lru.value++;
+				init_lru(index_val, i);
 				cache[index_val].block[i].valid = 1;
-				/*Below line: copies data from the element + the offset, then transfers 4 Bytes*/
-				memcpy(data,cache[index_val].block[i].data + offset_val, 4); 
 			}
 		}
-		
 		if (HIT == 0) { //i.e. if there is a miss
 			/*LRU REPLACEMENT*/
 			int i = 0;
@@ -182,15 +180,15 @@ void accessMemory(address addr, word* data, WriteEnable we)
 						LRU_index = i;
 						LRU_value = cache[index_val].block[i].lru.value;
 					}
-					cache[index_val].block[i].lru.value++; // increment the lru value
+					init_lru(index_val, i); // increment the lru value
 				}
 			} else if (policy == RANDOM) {
 				LRU_index = randomint(assoc);
 			} 
 			/*Below line: checking if DIRTY */
-			 if (cache[index_val].block[LRU_index].dirty == DIRTY) { 
+			if (cache[index_val].block[LRU_index].dirty == DIRTY) { 
 				address oldAddr = cache[index_val].block[LRU_index].tag << ((index_bit + offset_bit) + (index_val << offset_bit));
-				//printf("%x\n",oldAddr);
+				
 				accessDRAM(oldAddr, (cache[index_val].block[LRU_index].data), byte_amount, WRITE);
 			}
 			 
@@ -200,10 +198,9 @@ void accessMemory(address addr, word* data, WriteEnable we)
 			cache[index_val].block[LRU_index].tag = tag_val;
 			cache[index_val].block[LRU_index].lru.value = 0;
 			cache[index_val].block[LRU_index].valid = 1;
-			
-			/*Below line: copies data from the element + the offset, then transfers 4 Bytes*/
-			memcpy(data,cache[index_val].block[LRU_index].data + offset_val, 4);
 		}
+		/*Below line: copies data from the element + the offset, then transfers 4 Bytes*/
+		memcpy(data,cache[index_val].block[LRU_index].data + offset_val, 4);
 	} /*WRITE*/ 
 	 else { 
 		HIT = 0;
